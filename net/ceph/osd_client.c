@@ -1259,7 +1259,7 @@ static bool __pool_full(struct ceph_pg_pool_info *pi)
 	return pi->flags & CEPH_POOL_FLAG_FULL;
 }
 
-static bool have_pool_full(struct ceph_osd_client *osdc)
+bool ceph_osdc_have_pool_full(struct ceph_osd_client *osdc)
 {
 	struct rb_node *n;
 
@@ -1273,6 +1273,7 @@ static bool have_pool_full(struct ceph_osd_client *osdc)
 
 	return false;
 }
+EXPORT_SYMBOL(ceph_osdc_have_pool_full);
 
 static bool pool_full(struct ceph_osd_client *osdc, s64 pool_id)
 {
@@ -3271,7 +3272,7 @@ void ceph_osdc_handle_map(struct ceph_osd_client *osdc, struct ceph_msg *msg)
 	was_pauserd = ceph_osdmap_flag(osdc, CEPH_OSDMAP_PAUSERD);
 	was_pausewr = ceph_osdmap_flag(osdc, CEPH_OSDMAP_PAUSEWR) ||
 		      ceph_osdmap_flag(osdc, CEPH_OSDMAP_FULL) ||
-		      have_pool_full(osdc);
+		      ceph_osdc_have_pool_full(osdc);
 
 	/* incremental maps */
 	ceph_decode_32_safe(&p, end, nr_maps, bad);
@@ -3335,7 +3336,7 @@ done:
 	pauserd = ceph_osdmap_flag(osdc, CEPH_OSDMAP_PAUSERD);
 	pausewr = ceph_osdmap_flag(osdc, CEPH_OSDMAP_PAUSEWR) ||
 		  ceph_osdmap_flag(osdc, CEPH_OSDMAP_FULL) ||
-		  have_pool_full(osdc);
+		  ceph_osdc_have_pool_full(osdc);
 	if (was_pauserd || was_pausewr || pauserd || pausewr ||
 	    (osdc->epoch_barrier && osdc->osdmap->epoch < osdc->epoch_barrier))
 		maybe_request_map(osdc);

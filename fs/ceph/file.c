@@ -692,7 +692,7 @@ static void ceph_aio_retry_work(struct work_struct *work)
 
 	req->r_flags =	CEPH_OSD_FLAG_ORDERSNAP |
 			CEPH_OSD_FLAG_ONDISK |
-			CEPH_OSD_FLAG_WRITE;
+			CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_FULL_CANCEL;
 	ceph_oloc_copy(&req->r_base_oloc, &orig_req->r_base_oloc);
 	ceph_oid_copy(&req->r_base_oid, &orig_req->r_base_oid);
 
@@ -849,7 +849,7 @@ ceph_direct_read_write(struct kiocb *iocb, struct iov_iter *iter,
 
 		flags = CEPH_OSD_FLAG_ORDERSNAP |
 			CEPH_OSD_FLAG_ONDISK |
-			CEPH_OSD_FLAG_WRITE;
+			CEPH_OSD_FLAG_WRITE | CEPH_OSD_FLAG_FULL_CANCEL;
 	} else {
 		flags = CEPH_OSD_FLAG_READ;
 	}
@@ -1051,6 +1051,7 @@ ceph_sync_write(struct kiocb *iocb, struct iov_iter *from, loff_t pos,
 	flags = CEPH_OSD_FLAG_ORDERSNAP |
 		CEPH_OSD_FLAG_ONDISK |
 		CEPH_OSD_FLAG_WRITE |
+		CEPH_OSD_FLAG_FULL_CANCEL |
 		CEPH_OSD_FLAG_ACK;
 
 	while ((len = iov_iter_count(from)) > 0) {
@@ -1549,7 +1550,8 @@ static int ceph_zero_partial_object(struct inode *inode,
 					offset, length,
 					0, 1, op,
 					CEPH_OSD_FLAG_WRITE |
-					CEPH_OSD_FLAG_ONDISK,
+					CEPH_OSD_FLAG_ONDISK |
+					CEPH_OSD_FLAG_FULL_CANCEL,
 					NULL, 0, 0, false);
 	if (IS_ERR(req)) {
 		ret = PTR_ERR(req);

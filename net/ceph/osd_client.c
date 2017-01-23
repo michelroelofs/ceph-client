@@ -50,6 +50,7 @@ static void link_linger(struct ceph_osd *osd,
 			struct ceph_osd_linger_request *lreq);
 static void unlink_linger(struct ceph_osd *osd,
 			  struct ceph_osd_linger_request *lreq);
+static void complete_request(struct ceph_osd_request *req, int err);
 
 #if 1
 static inline bool rwsem_is_wrlocked(struct rw_semaphore *sem)
@@ -1643,6 +1644,7 @@ static void __submit_request(struct ceph_osd_request *req, bool wrlocked)
 	enum calc_target_result ct_res;
 	bool need_send = false;
 	bool promoted = false;
+	int ret = 0;
 
 	WARN_ON(req->r_tid || req->r_got_reply);
 	dout("%s req %p wrlocked %d\n", __func__, req, wrlocked);
@@ -1683,6 +1685,8 @@ again:
 		pr_warn_ratelimited("FULL or reached pool quota\n");
 		req->r_t.paused = true;
 		maybe_request_map(osdc);
+		if (req->r_flags & CEPH_OSD_FLAG_FULL_CANCEL)
+			ret = -ENOSPC;
 	} else if (!osd_homeless(osd)) {
 		need_send = true;
 	} else {
@@ -1699,6 +1703,8 @@ again:
 	link_request(osd, req);
 	if (need_send)
 		send_request(req);
+	else if (ret)
+		complete_request(req, ret);
 	mutex_unlock(&osd->lock);
 
 	if (ct_res == CALC_TARGET_POOL_DNE)

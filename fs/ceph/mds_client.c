@@ -433,6 +433,21 @@ static int __verify_registered_session(struct ceph_mds_client *mdsc,
 	return 0;
 }
 
+static void handle_osd_map(struct ceph_osd_client *osdc, void *p)
+{
+	u32 cancelled_epoch = 0;
+
+	lockdep_assert_held(&osdc->lock);
+
+	if ((osdc->osdmap->flags & CEPH_OSDMAP_FULL) ||
+	    ceph_osdc_have_pool_full(osdc))
+		cancelled_epoch = ceph_osdc_complete_writes(osdc, -ENOSPC);
+
+	if (cancelled_epoch)
+		osdc->epoch_barrier = max(cancelled_epoch + 1,
+					  osdc->epoch_barrier);
+}
+
 /*
  * create+register a new session for given mds.
  * called under mdsc->mutex.
@@ -3485,6 +3500,9 @@ int ceph_mdsc_init(struct ceph_fs_client *fsc)
 
 	ceph_caps_init(mdsc);
 	ceph_adjust_min_caps(mdsc, fsc->min_caps);
+
+	ceph_osdc_register_map_cb(&fsc->client->osdc,
+				  handle_osd_map, (void*)mdsc);
 
 	init_rwsem(&mdsc->pool_perm_rwsem);
 	mdsc->pool_perm_tree = RB_ROOT;

@@ -395,6 +395,7 @@ void ceph_put_mds_session(struct ceph_mds_session *s)
 	if (atomic_dec_and_test(&s->s_ref)) {
 		if (s->s_auth.authorizer)
 			ceph_auth_destroy_authorizer(s->s_auth.authorizer);
+		BUG_ON(!list_empty(&s->s_unsafe));
 		kfree(s);
 	}
 }
@@ -571,6 +572,7 @@ void ceph_mdsc_release_request(struct kref *kref)
 		ceph_pagelist_release(req->r_pagelist);
 	put_request_session(req);
 	ceph_unreserve_caps(req->r_mdsc, &req->r_caps_reservation);
+	BUG_ON(!list_empty(&req->r_unsafe_item));
 	kfree(req);
 }
 

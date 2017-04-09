@@ -250,6 +250,7 @@ enum {
 	Opt_nocephx_sign_messages,
 	Opt_tcp_nodelay,
 	Opt_notcp_nodelay,
+	Opt_sloppy,
 };
 
 static match_table_t opt_tokens = {
@@ -275,6 +276,7 @@ static match_table_t opt_tokens = {
 	{Opt_nocephx_sign_messages, "nocephx_sign_messages"},
 	{Opt_tcp_nodelay, "tcp_nodelay"},
 	{Opt_notcp_nodelay, "notcp_nodelay"},
+	{Opt_sloppy, "sloppy"},
 	{-1, NULL}
 };
 
@@ -345,6 +347,7 @@ ceph_parse_options(char *options, const char *dev_name,
 	struct ceph_options *opt;
 	const char *c;
 	int err = -ENOMEM;
+	int sloppy = 0, invalid_option = 0;
 	substring_t argstr[MAX_OPT_ARGS];
 
 	opt = kzalloc(sizeof(*opt), GFP_KERNEL);
@@ -384,7 +387,7 @@ ceph_parse_options(char *options, const char *dev_name,
 			err = parse_extra_token((char *)c, private);
 			if (err < 0) {
 				pr_err("bad option at '%s'\n", c);
-				goto out;
+				invalid_option = err;
 			}
 			continue;
 		}
@@ -520,13 +523,20 @@ ceph_parse_options(char *options, const char *dev_name,
 			opt->flags &= ~CEPH_OPT_TCP_NODELAY;
 			break;
 
+		case Opt_sloppy:
+			sloppy = 1;
+			break;
 		default:
 			BUG_ON(token);
 		}
 	}
 
-	/* success */
-	return opt;
+	if (!invalid_option || sloppy)
+		/* success */
+		return opt;
+	else
+		err=invalid_option;
+
 
 out:
 	ceph_destroy_options(opt);
